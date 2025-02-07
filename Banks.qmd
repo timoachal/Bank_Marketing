@@ -1,0 +1,961 @@
+---
+title: "Untitled"
+author: "Timothy Achala"
+format: docx
+editor: visual
+---
+
+## Study Objective
+
+### Build a Decision Tree classifier to predict whether a customer will subscribe to a term of service. However, i have used different machine learning algorithms like: support vector machine, random forest and logistic regression.
+
+## Loading required libraries
+
+```{r, message=FALSE, warning=FALSE}
+pacman::p_load(tidyverse,
+               flextable,
+               e1071,
+               flextable,
+               dlookr,
+               mice,
+               VIM,
+               gtExtras,
+               gtsummary,
+               visdat,
+               ggstatsplot,
+               ggcorrplot,
+               randomForest,
+               caret,
+               PerformanceAnalytics,
+               performance,
+               class,
+               caTools,
+               sjPlot,
+               emmeans,
+               rpart,
+               rpart.plot,
+               report,
+               ggeffects,
+               effectsize)
+```
+
+## Importing the Data set
+
+```{r}
+bank = read.csv("E:/data sets/Bank data/bank.csv", sep = ";")
+```
+
+### Preparation of nice plots
+
+```{r}
+theme_set(theme_bw()+
+            theme(title = element_text(color = "#4CBB17",
+                                       size = 18,
+                                       face = "bold"),
+                  legend.position = "bottom",
+                  axis.text = 
+                    element_text(size = 10,
+                                 color = "#6495ED",
+                                 face = "bold"),
+                  axis.title = element_text(size = 12,
+                                            face = "bold",
+                                            colour = "#FF5733")))
+```
+
+### Exploring the data set
+
+```{r}
+## the first 5 characters                                                                             
+bank %>% 
+  head(5)
+
+## the last 5 characters
+bank %>% 
+  tail(5)
+  
+```
+
+### Checking the data types
+
+```{r}
+##Checking the data types
+str(bank)
+dim(bank)
+```
+
+```{r}
+## Checking for duplicates
+bank %>% 
+  filter(duplicated(.)) %>% 
+  view()
+```
+
+## Exploratory Data Analysis
+
+```{r, warning=FALSE}
+# checking for normality across the data
+
+bank %>% 
+  select(1,11:13,16:20) %>% 
+  normality() %>% 
+  mutate(across(is.numeric, ~round(., 3))) %>% 
+  regulartable()
+```
+
+### 1. Age
+
+```{r, warning=FALSE}
+#1. Age
+
+summary(bank$age)
+
+quantile(bank$age, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+##Plotting a Histogram of Age
+bank %>% 
+  ggplot(aes(age))+
+  geom_histogram(binwidth = 7, fill = "steelblue")+
+  geom_vline(aes(xintercept = mean(age)), size = 1.0, colour = "red",linetype = "dashed")+
+  annotate("text",x = 40.0, y = 11000,
+          label = paste("Mean \n ", round(mean(bank$age),2)),
+           color = "darkred",
+           size = 5)+
+  annotate("text",x = 80.0, y = 12000,
+           label = paste("Skewness \n ", round(skewness(bank$age),3)),
+           color = "navyblue",
+           size = 3)+
+  annotate("text",x = 80.0, y = 10000,
+           label = paste("Kurtosis \n ", round(kurtosis(bank$age),3)),
+           color = "red",
+           size = 3)+
+  scale_size(range = c(12,12))+
+  scale_x_continuous(breaks = c(20,40,60,80))+
+  labs(title = "Histogram Of Age",
+       x = "Age",
+       y = NULL)
+```
+
+### 2. Job Type
+
+```{r, warning=FALSE}
+unique(bank$job)
+## Bar plot of Job type
+bank %>% 
+  ggplot(aes(job))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = T,alpha = .5)+
+  labs(title = "Bar plot of Job Type",
+       x = "Job Type",
+       fill = "Subscription \nof Service")+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+```
+
+### 3. Marital Status
+
+```{r, warning=FALSE}
+# Bar plot of Marital status
+bank %>% 
+  ggplot(aes(marital))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = T)+
+  labs(title = "Bar plot of Marital status",
+       x = "Marital Status",
+       fill = "Purchase \nof Service")+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+```
+
+### 4. Education
+
+```{r warning=FALSE}
+# Bar plot of Education
+bank %>% 
+  ggplot(aes(education))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = T,alpha = .7)+
+  labs(title = "Bar plot of Education",
+       x = "Education",
+       fill = "Purchase \nof Service")+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+
+```
+
+### 6. Housing
+
+```{r}
+# Bar plot of Housing
+bank %>% 
+  ggplot(aes(housing))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = T,alpha = .5)+
+  labs(title = "Bar plot of Housing",
+       x = "Housing",
+       fill = "Purchase \nof Service")
+```
+
+### 7. Housing
+
+```{r}
+# Bar plot of Loan
+bank %>% 
+  ggplot(aes(loan))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = T,alpha = .5)+
+  labs(title = "Bar plot of Loan",
+       x = "Loan",
+       fill = "Purchase \nof Service")
+```
+
+### 8. Contact
+
+```{r}
+#Bar plot of Contact
+bank %>% 
+  ggplot(aes(contact))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = T)+
+  labs(title = "Bar plot of Contact",
+       x = "Contact",
+       fill = "Purchase \nof Service")
+```
+
+### 9. Month
+
+```{r}
+#Bar plot of Month
+bank %>% 
+  ggplot(aes(month))+
+  geom_bar(aes(fill = y),position = "dodge",stat = "count",show.legend = T)+
+  labs(title = "Bar plot of Months",
+       x = "month",
+       fill = "Purchase \nof Service")+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+```
+
+### 10. Day of the week
+
+```{r, warning=FALSE}
+# Bar plot of Days of the week
+bank %>% 
+  ggplot(aes(day_of_week))+
+  geom_bar(aes(fill = y),position = "dodge",stat = "count",show.legend = T)+
+  labs(title = "Bar plot of Days of the week",
+       x = "day of the week",
+       fill = "Purchase \nof Service")+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+```
+
+### 11. Duration
+
+```{r}
+# Duration
+summary(bank$duration)
+quantile(bank$duration, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+## Histogram of Duration
+bank %>% 
+  ggplot(aes(duration))+
+  geom_histogram(bins = 20,fill = "steelblue")+
+  geom_vline(aes(xintercept = mean(duration)), size = 1.0, colour = "red",linetype = "dashed")+
+  annotate("text",x = 258.0, y = 18000,
+          label = paste("Mean \n ", round(mean(bank$duration),2)),
+         color = "darkred",
+        size = 5)+
+    annotate("text",x = 4500.0, y = 19000,
+           label = paste("Skewness \n ", round(skewness(bank$duration),3)),
+           color = "navyblue",
+          size = 3)+
+  annotate("text",x = 4500.0, y = 17000,
+          label = paste("Kurtosis \n ", round(kurtosis(bank$duration),3)),
+         color = "red",
+      size = 3)+
+labs(title = "Histogram Of Duration",
+     x = "Duration in (seconds)",
+     y = NULL)
+```
+
+### 12. Campaign
+
+```{r}
+#campaign
+summary(bank$campaign)
+quantile(bank$campaign, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+## Histogram of Cammpaign
+bank %>% 
+  ggplot(aes(campaign))+
+  geom_histogram(bins = 20,fill = "steelblue")+
+  geom_vline(aes(xintercept = mean(campaign)), size = 1.0, colour = "red",linetype = "dashed")+
+  annotate("text",x = 3.0, y = 15500,
+          label = paste("Mean \n ", round(mean(bank$campaign),2)),
+         color = "darkred",
+        size = 5)+
+labs(title = "Number of contacts during \nthe campaign",
+     x = "No of contacts in campaign",
+     y = NULL)
+```
+
+### 13. Number of times passed after the client was previously contacted(pdays)
+
+```{r warning=FALSE}
+# Number of times passed after the client was previously contacted(pdays)
+summary(bank$pdays)
+quantile(bank$pdays, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+##Histogram of Number of times passed after the client was previously contacted(pdays)
+bank %>% 
+  ggplot(aes(pdays))+
+  geom_histogram(bins = 20,fill = "steelblue")+
+labs(title = "No of Contacts perfomed\n before campaign",
+     x = "No of Contacts perfomed before campaign",
+     y = NULL)
+```
+
+### 14. Histogram of Outcome pf previous marketing campaign(poutcome)
+
+```{r}
+# Histogram of Outcome pf previous marketing campaign(poutcome)
+bank %>% 
+  ggplot(aes(poutcome))+
+  geom_bar(aes(fill = y),position = "dodge",stat = "count",show.legend = T)+
+  labs(title = "Bar plot of POutcome",
+       x = "Previous marketing outcome",
+       fill = "Purchase \nof Service")
+```
+
+### SOCIAL AND ECONOMIC ATTRIBUTES
+
+### 15. Employment variation rate - quartely indicator
+
+```{r, warning=FALSE}
+#  Employment variation rate - quartely indicator
+summary(bank$emp.var.rate)
+quantile(bank$emp.var.rate, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+# Histogram of  Employment variation rate - quartely indicator
+bank %>% 
+  ggplot(aes(emp.var.rate))+
+  geom_histogram(bins = 20,fill = "steelblue")+
+labs(title = "Variation rate\n of Employment",
+     x = "Variation rate of Employment",
+     y = NULL)
+
+```
+
+### 16. Consumer price index- monthly indicator
+
+```{r}
+#  Consumer price index- monthly indicator
+summary(bank$cons.price.idx)
+quantile(bank$cons.price.idx, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+## Histogram of Consumer price index- monthly indicator
+bank %>% 
+  ggplot(aes(cons.price.idx))+
+  geom_histogram(bins = 15,fill = "steelblue")+
+  geom_vline(aes(xintercept = mean(cons.price.idx)), size = 1.0, colour = "red",linetype = "dashed")+
+  annotate("text",x = 93.58, y = 7900,
+          label = paste("Mean \n ", round(mean(bank$cons.price.idx),2)),
+         color = "darkred",
+        size = 5)+
+labs(title = "Monthly consumer price index",
+     x = "Monthly consumer price index",
+     y = NULL)
+```
+
+### 17. Consumer confidex index- monthly indicator
+
+```{r warning=FALSE}
+##  Consumer confidex index- monthly indicator
+summary(bank$cons.price.idx)
+quantile(bank$cons.price.idx, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+## Histogram of Consumer confidex index- monthly indicator
+bank %>% 
+  ggplot(aes(cons.conf.idx))+
+  geom_histogram(bins = 15,fill = "steelblue")+
+labs(title = "Monthly consumer conf\n index",
+     x = "Monthly consumer confidence index",
+     y = NULL)
+
+```
+
+### 18. Euribor 3 month rate- daily indicator
+
+```{r}
+##  Euribor 3 month rate- daily indicator
+summary(bank$euribor3m)
+quantile(bank$euribor3m, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+## Hisogram of  Euribor 3 month rate- daily indicator
+bank %>% 
+  ggplot(aes(euribor3m))+
+  geom_histogram(binwidth = 1,fill = "steelblue")+
+labs(title = "Euribor 3 month rate",
+     x = "Euribor 3 month rate",
+     y = NULL)
+```
+
+### 19. Number of employees - quartely indicator
+
+```{r}
+## Number of employees - quartely indicator
+summary(bank$nr.employed)
+quantile(bank$nr.employed, c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95))
+
+## Histogram of Number of employees - quartely indicator
+bank %>% 
+  ggplot(aes(nr.employed))+
+  geom_histogram(binwidth = 100,fill = "steelblue")+
+  geom_vline(aes(xintercept = mean(nr.employed)), size = 1.0, colour = "red",linetype = "dashed")+
+  annotate("text",x = 5167.0, y = 25225,
+          label = paste("Mean \n ", round(mean(bank$nr.employed),2)),
+         color = "darkred",
+        size = 5)+
+labs(title = "Number of Employees",
+     x = "Employee numbers",
+     y = NULL)
+
+```
+
+### 20. Will the customer subscribe to a term of service (y)
+
+```{r}
+## Will the customer subscribe to a term of deposit? (y)
+
+## Bar plot of target variable (y)
+bank %>% 
+  ggplot(aes(y))+
+  geom_bar(aes(fill = y), position = "dodge", stat = "count",show.legend = F)+
+  labs(title = "Bar plot of Customer\n Subscription",
+       x = "Customer Subscription",
+       fill = "Purchase \nof Service")
+```
+
+## DATA CLEANING
+
+### Handling missing data
+
+```{r}
+##checking for the percentage of missing data
+p<- function(bank) {sum(is.na(bank))/length(bank)*100}
+apply(bank,2,p)
+```
+
+```{r}
+# there are no missing values as per the above function in our data yet the missing values have been coded as "unknown"
+
+# dealing with missing values and coding them to NA
+bank$job[bank$job == "unknown"]<-NA
+bank$marital[bank$marital == "unknown"]<-NA
+bank$education[bank$education == "unknown"]<-NA
+bank$housing[bank$housing == "unknown"]<-NA
+bank$loan[bank$loan == "unknown"]<-NA
+
+```
+
+```{r}
+## converting to factors
+bank$job<- factor(bank$job)
+bank$marital<-factor(bank$marital)
+bank$education<-factor(bank$education)
+bank$housing<-factor(bank$housing)
+bank$loan<-factor(bank$loan)
+```
+
+```{r warning=FALSE}
+## Finding the visual format of missing data
+plot_na_pareto(bank, only_na = T) 
+```
+
+### Imputation of the categorical variables
+
+```{r}
+# Imputation by poyreg (polytomous regression)
+bank_data<- mice(bank, method = "polyreg", m =1)
+bankk<- complete(bank_data,1)
+```
+
+```{r}
+## Visualizing the Imputed data with the original data
+ggplot()+
+  geom_bar(data = bank, aes(job), width = 0.3)+
+  geom_bar(data = bankk, aes(job), fill = "red",
+          position = position_nudge(x = 0.25), width = 0.3)+
+    theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+
+```
+
+### Chi-square tests of Independence
+
+```{r}
+ggbarstats(
+  data = bank,
+  x = marital,
+  y = y,
+  label = "both"
+)
+
+```
+
+The target variable **(y)** and **marital status** are dependent on each other since the p - value is less than **0.05**
+
+We can also conclude that their is **negligible association** between the target variable**(y)** and **marital status,** since the Cramers value is 0.05.
+
+```{r}
+ggbarstats(
+  data = bank,
+  x = education,
+  y = y,
+  label = "both"
+)
+```
+
+The target variable **(y)** and **education** are dependent on each other since the p - value is less than **0.05**
+
+We can also conclude that their is **negligible association** between the target variable**(y)** and **education,** since the Cramers value is 0.07
+
+```{r}
+ggbarstats(
+  data = bank,
+  x = loan,
+  y = y,
+  label = "both"
+)
+```
+
+The target variable **(y)** and **loan** are independent on each other since the p - value is greater than **0.05**
+
+We can also conclude that their is **negligible association** between the target variable**(y)** and **loan,** since the Cramers value is 0.00
+
+### Coding the Categorical Variables
+
+```{r}
+
+bankk <-bankk %>% 
+  select(-default) %>% 
+  mutate(job= case_when(job == "admin" ~ "1",
+                        job ==  "blue-collar" ~ "2",
+                        job == "entrepreneur" ~ "3",
+                        job == "housemaid" ~ "4",
+                        job == "management"~ "5",
+                        job == "retired" ~ "6",
+                        job == "self-employed"~ "7",
+                        job == "services"~ "8",
+                        job == "student"~ "9",
+                        job == "technician"~ "10",
+                         TRUE ~ "11")) %>% 
+  mutate(marital = case_when(marital == "divorced" ~ "0",
+                             marital == "married" ~ "1",
+                         TRUE ~ "2")) %>%
+  mutate(education = case_when(education == "basic.4y"~ "0",
+                               education == "basic.6y"~ "1",
+                               education == "basic.9y"~ "2",
+                               education == "high.school"~ "3",
+                               education == "illiterate"~ "4",
+                               education == "professional.course"~ "5",
+                                 TRUE ~ "6")) %>%
+  mutate(housing = case_when(housing == "no"~ "0",
+                             TRUE ~ "1")) %>% 
+  mutate(loan = case_when(loan == "no"~ "0",
+                          TRUE ~ "1")) %>% 
+  mutate(contact = case_when(contact == "telephone"~ "0",
+                             TRUE ~ "1")) %>%
+  mutate(month = case_when(month == "mar"~ "0",
+                           month == "apr"~ "1",
+                           month == "may"~ "2",
+                           month == "jun"~ "3",
+                           month == "jul"~ "4",
+                           month == "aug"~ "5",
+                           month == "sep"~ "6",
+                           month == "oct"~ "7",
+                           month == "nov"~ "8",
+                               TRUE ~ "9")) %>%
+  mutate(day_of_week = case_when(day_of_week == "mon"~ "0",
+                                 day_of_week == "tue"~ "1",
+                                 day_of_week == "wed"~ "2",
+                                 day_of_week == "thu"~ "3",
+                           TRUE ~ "4")) %>%
+  mutate(poutcome = case_when(poutcome == "nonexistent"~ "0",
+                              poutcome == "failure"~ "1",
+                                 TRUE ~ "3")) %>%
+  mutate(y = case_when(y == "no"~ "0",
+                          TRUE ~ "1")) 
+```
+
+### Changing the Factors to Numeric
+
+```{r}
+## changing the factor variables to numeric so as to perfom correlation
+bankk$job<- as.numeric(bankk$job)
+bankk$marital<-as.numeric(bankk$marital)
+bankk$education<-as.numeric(bankk$education)
+bankk$housing<-as.numeric(bankk$housing)
+bankk$loan<-as.numeric(bankk$loan)
+bankk$contact<-as.numeric(bankk$contact)
+bankk$month<-as.numeric(bankk$month)
+bankk$day_of_week<-as.numeric(bankk$day_of_week)
+bankk$poutcome<-as.numeric(bankk$poutcome)
+bankk$y<-as.numeric(bankk$y)
+```
+
+### Normalizing the data
+
+```{r}
+## Normalizing the data
+normalize<- function(x) {
+  return((x - min(x)) / (max(x) - min(x))) }
+Bank<- as.data.frame(lapply(bankk[,1:20], normalize))
+head(Bank)
+```
+
+## Correlation Analysis
+
+```{r}
+# Correlation Analysis
+round(cor(bankk),1)
+
+ggcorrplot(cor(Bank), title = "CORRELOGRAM", 
+           legend.title = "Pearson Correlation" , lab =  TRUE,
+           lab_col = "black",
+           lab_size = 3, ggtheme = theme_bw,
+           outline.color = "black",
+           colors = c("white", "blue", "darkred"))
+```
+
+Their is a strong positive correlation between number of employees and euribor 3 month rate.
+
+Their is also a strong positive correlation between number of employees and employment variation rate.
+
+Their is a strong positive correlation between outcome of previous marketing campaign (poutcome) and number of contacts perfomed before campaign (previous).
+
+Their is a moderate negative correlation between number of days that passed by after the client was last contacted from a previous campaign (pdays) and number of contacts perfomed before campaign (previous).
+
+### Scatter plots
+
+### 1. Employment rate and Employee Numbers
+
+```{r warning=FALSE}
+bankk %>% 
+  mutate(y = factor(y,
+                       levels = c(0 ,1),
+                          labels = c("No",
+                                    "Yes"))) %>%
+  ggplot(aes(x = emp.var.rate, 
+             y = nr.employed,))+
+  geom_point(size = 3,
+              alpha = .5,show.legend = F)+
+  facet_wrap(~y)+
+  geom_smooth(method = lm,
+              se = FALSE)+
+  labs(title = "Employment rate and\n Employee Numbers",
+       x= "Employment variation rate",
+       y = "Number of Employed")
+```
+
+### 2. euribor 3 month rate and Employee Numbers
+
+```{r, warning=FALSE}
+bankk %>% 
+  mutate(y = factor(y,
+                       levels = c(0 ,1),
+                          labels = c("No",
+                                    "Yes"))) %>%
+  ggplot(aes(x = euribor3m, 
+             y = nr.employed,))+
+  geom_point(alpha = .5,show.legend = F)+
+  facet_wrap(~y)+
+  geom_smooth(method = lm,
+              se = FALSE)+
+  labs(title = "euribor 3 month rate and\n Employee Numbers",
+       x= "euribor 3 month rate",
+       y = "Number of Employed")
+```
+
+## CREATING MODELS
+
+## Random Forest
+
+```{r}
+## Splitting data into training and testing
+set.seed(3)
+id<- sample(2,nrow(Bank),prob = c(0.7,0.3), replace = TRUE)
+Bank_train<- Bank[id == 1,]
+Bank_test<- Bank[id==2,]
+```
+
+```{r}
+## Changing into factor
+Bank$y<- as.factor(Bank$y)
+```
+
+```{r warning=FALSE}
+## Preparation for testing
+bestmtry<- tuneRF(Bank_train, Bank_train$y,stepFactor = 1.2, improve = 0.01, trace = T, plot = T)
+
+Bank_train$y<- as.factor(Bank_train$y)
+Bank_forest<- randomForest(y ~ ., data= Bank_train)
+Bank_forest
+```
+
+```{r , warning=FALSE}
+## to find no of significant values in the decision trees
+importance(Bank_forest)
+## visualizing of the above
+varImpPlot(Bank_forest) 
+
+```
+
+```{r, warning=FALSE}
+## model validation
+preBank<- predict(Bank_forest, newdata = Bank_test, type = "class")
+
+confusionMatrix(table(preBank, Bank_test$y))
+
+```
+
+The accuracy of the model is **91.11%** therefore the model can be used to predict whether a customer subscribes to a bank loan.
+
+## Support Vector Machine
+
+```{r}
+## Splitting te data into training and testing
+set.seed(300)
+Intrain <-createDataPartition(y = bankk$y, p = 0.8, list = F)
+traini<- bankk[Intrain,]
+testi<- bankk[-Intrain,]
+```
+
+```{r}
+## Preparations for predictions
+traini[["y"]] = factor(traini[["y"]])
+trctrl<- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+svm_Linear<- train(y ~., data = traini, method = "svmLinear",
+                   trControl = trctrl,
+                   preProcess = c("center","scale"), 
+                   tuneLength = 10)
+svm_Linear
+```
+
+```{r}
+## Making predictions
+test_pred<- predict(svm_Linear, newdata = testi)
+confusionMatrix(table(test_pred, testi$y))
+```
+
+## Decision Trees
+
+```{r}
+## Splitting the data set into training and testing
+set.seed(147)
+id<- sample(2,nrow(bankk),prob = c(0.8,0.2), replace = TRUE)
+bankk_train<- bankk[id == 1,]
+bankk_test<- bankk[id==2,]
+```
+
+```{r}
+## Building a classification tree
+bank_tree<- rpart(y~., data = bankk_train, method = "class")
+bank_tree
+rpart.plot(bank_tree)
+```
+
+```{r}
+pred_bank<- predict(bank_tree, newdata = bankk_test, type = "class")
+confusionMatrix(table(pred_bank, bankk_test$y))
+```
+
+The model's performance is **90.61%**
+
+## Logistic Regression
+
+```{r}
+## Splitting the data into training and testing
+set.seed(5)
+split<- sample.split(bankk,SplitRatio = 0.8)
+training<- subset(bankk,split == "TRUE")
+testing<- subset(bankk,split== "FALSE")
+
+```
+
+```{r}
+## Using the summary function
+model<- glm(y ~ ., training, family = "binomial")
+summary(model)
+```
+
+### Checking for non-linearity
+
+```{r}
+m1 <- mgcv:: gam(y ~ job + s(age) + marital + education + housing+loan+month+day_of_week+poutcome,training, family = binomial)
+plot(m1)
+```
+
+It seems to be non-linear
+
+```{r, warning=FALSE}
+## Plotting the predictions
+plot_model(model, type = "pred", terms = "age")
+```
+
+### Checking for non-linearity
+
+```{r}
+## Checking for non-linearity
+m2<- glm(y ~ poly(age, 2), data = training, family = binomial)
+m3<- glm(y ~ poly(age, 3), data = training, family = binomial)
+m4<- glm(y ~ poly(age, 4), data = training, family = binomial)
+```
+
+```{r, warning=FALSE}
+## Comparing models with the lowwest AIC
+AIC(model, m2,m3,m4)
+```
+
+### Checking the models assumption
+
+```{r}
+check_model(m4)
+```
+
+The posterior predictive check involves comparing the models prediccted intervals with the actual observed values. It helps as assess how well the model aligns with our data.
+
+From the plot it is evident that the outliiers present are most likeky not to be influential, Moreover the residuals exhibit a uniform distribution. Therefore the model seems to be okay.
+
+```{r}
+## Plot predictions
+plot_model(m4, type = "eff", terms = "age[all]")
+```
+
+The plot shows how age influences the subscription of a term of service(y)
+
+It is clearly seen that the plot divides the data into 3 distinctive parts. To better see clearly we can divide age into different groups by treating age as a categorical variable.
+
+```{r}
+## Plot particular predictions
+b <- emmip(m4, ~ age, CIs = T, type = "response", at = list(age = c(1,25,53,73)))+
+  scale_y_continuous(labels = scales::percent)
+b 
+```
+
+The plot evidently shows that age (10-25) are less likely to subscribe to a term of service, while age (50-75) have a more likely higher probability of subscribing to a term of service than the younger age.
+
+Initially Age negatively impacts the subscription of term of service(y) and then later on the Age tends to positively impact the target variable(y) positively at approximately 53 years.
+
+### Getting the probabilities and the odds ratios
+
+```{r}
+## Getting the probabilities and the odds ratios
+emmeans(m4,pairwise ~ age, type = "response",
+        at = list(age = c(1,25,53,73)), infer = T)
+```
+
+The probability of age 1 to subscribe for a term of service is 48.5% this result is statistically insignificant since more age 1 individuals are not likely to subscribe to a term of service.
+
+The probability of age 25 to subscribe for a term of service is 18.2% this result is statistically significant since age 25 individuals are likely to subscribe to a term of service. Thus the probability of subscribing to a term of service **(18.2%)** is significantly lower than the probability of not subscribing to a term of service **(81.8%)**
+
+The probability of age 53 to subscribe for a term of service is 10.7% this result is statistically significant since age 53 individuals are likely to subscribe to a term of service. Thus the probability of subscribing to a term of service **(10.7%)** is significantly lower than the probability of not subscribing to a term of service **(80.3%)**
+
+The probability of age 73 to subscribe for a term of service is 46.2% this result is statistically insignificant since more age 73 individuals are not likely to subscribe to a term of service.
+
+### Odds-ratios
+
+The subscription of service for age 1 individuals are 4.2 times greater than than those for age 25 individuals, but this results are statistically insignificant.
+
+The subscription of service for age 1 individuals are 7.8 times greater than than those for age 53 individuals, but this results are statistically insignificant.
+
+The subscription of service for age 1 individuals are 1.1 times greater than than those for age 73 individuals, but this results are statistically insignificant.
+
+### Dealing with categorical variables in the logistic regression
+
+ 
+
+```{r}
+## converting to factors
+bankk$job<- as.character(bank$job)
+bankk$marital<-as.character(bank$marital)
+bankk$education<-as.character(bank$education)
+bankk$housing<-as.character(bank$housing)
+bankk$loan<-as.character(bank$loan)
+
+```
+
+```{r}
+m<-glm(y ~ job + marital+education+housing+loan, data = bankk, family = binomial)
+
+```
+
+```{r}
+## Plotting predictions of job type
+
+plot_model(m, type = "eff", terms = c("job"))+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+```
+
+It can be evidently seen that the probability of retired individuals and students subscribing to a term of service is much higher.
+
+```{r}
+## Plotting predictions of marital status
+
+plot_model(m, type = "eff", terms = c("marital"))
+```
+
+It is evidently seen that the single aged people are more likely to subscribe to a term of service as compared to the married and divorced.
+
+```{r}
+## Plotting predictions of education
+
+plot_model(m, type = "eff", terms = c("education"))+
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+```
+
+Its evidently seen that the probability of illiterate people subscribing to a term of service is much higher.
+
+```{r}
+## Plotting predictions of Housing
+
+plot_model(m, type = "eff", terms = c("housing"))
+
+```
+
+The probability of individuals with a housing loan to subscribe to a term of service is much higher than individuals who don't have a housing loan.
+
+```{r}
+## Plotting predictions of loan
+
+plot_model(m, type = "eff", terms = c("loan"))
+```
+
+The probability of individuals with a personal loan to subscribe to a term of service is much higher than individuals who have a personal loan.
+
+```{r}
+## Producing model equations 
+extract_eq(m4)
+```
+
+```{r, warning=FALSE}
+## Generating reports
+report(m4)
+```
+
+### Extracting the probabilities
+
+```{r, warning=FALSE}
+## Extracting predictions
+ggeffect(model)
+```
+
+### Checking the perfomance of the model
+
+```{r}
+## Checking the perfomance of the model
+performance(model)
+```
+
+```{r}
+interpret_r2(0.378)
+```
+
+An R2 of 0.378 mean that our predictors explain 37.8% of the loan subscription of service and that's substantial.
+
+```{r}
+predictt<- predict(model, testing,y = "response")
+table(ActualValue = testing$y, PredictedValue = predictt>0.5)
+```
+
+(7213+246)/(7213+137+641+256) = 0.905548
+
+Our model is 90.55% accurate.
